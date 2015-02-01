@@ -161,6 +161,8 @@ public class dungeon
     public int room_base;
     public int room_radix;
     public uint[][] cell;
+    public int last_room_id;
+    public SortedList<int, Dictionary<string, int>> room;
 
     public dungeon()
     {
@@ -199,8 +201,10 @@ public class dungeon
         room_base = (int)((min + 1) / 2);
         room_radix = (int)((max - min) / 2) + 1;
 
+        room = new SortedList<int, Dictionary<string, int>>();
+
         init_cells();
-        //$dungeon = &emplace_rooms($dungeon);
+        emplace_rooms();
         //$dungeon = &open_rooms($dungeon);
         //$dungeon = &label_rooms($dungeon);
         //$dungeon = &corridors($dungeon);
@@ -258,5 +262,227 @@ public class dungeon
                 cell[r][c] = BLOCKED;
             }
         }
+    }
+
+    private void emplace_rooms()
+    {
+        if (room_layout == "Packed")
+            pack_rooms();
+        else
+            scatter_rooms();
+    }
+
+    private void pack_rooms()
+    {
+        for(int i = 0; i < n_i; i++)
+        {
+            int r = (i * 2) + 1;
+            for(int j = 0; j < n_j; j++)
+            {
+                int c = (j * 2) + 1;
+
+                if ((cell[r][c] & ROOM) == ROOM) continue;
+                if ((i == 0 || j == 0) && Random.value > 0.5) continue;
+
+                Dictionary<string, int> proto = new Dictionary<string,int>() { {"i",i}, {"j",j} };
+                emplace_room(proto);
+            }
+        }
+    }
+
+    private void scatter_rooms()
+    {
+        alloc_rooms();
+        for (int i = 0; i < n_rooms; i++)
+            emplace_room();
+    }
+
+    private void alloc_rooms()
+    {
+        int dungeon_area = n_cols * n_rows;
+        int room_area = room_max * room_max;
+        n_rooms = (int)dungeon_area / room_area;
+    }
+
+    private void emplace_room(Dictionary<string, int> proto = null)
+    {
+        if(n_rooms == 999) return;
+
+        if(proto == null)
+            proto = new Dictionary<string,int>();
+
+        int r,c;
+
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // room position and size
+
+        set_room(proto);
+
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // room boundaries
+
+        int r1 = ( proto["i"]                    * 2) + 1;
+        int c1 = ( proto["j"]                    * 2) + 1;
+        int r2 = ((proto["i"] + proto["height"]) * 2) - 1;
+        int c2 = ((proto["j"] + proto["width"] ) * 2) - 1;
+
+        if (r1 < 1 || r2 > max_row) return;
+        if (c1 < 1 || c2 > max_col)return;
+
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // check for collisions with existing rooms
+
+        Dictionary<string, int> hit = sound_room(r1,c1,r2,c2);
+        if (hit.ContainsKey("blocked")) return;
+        int n_hits = hit.Count;
+        int room_id;
+
+        if (n_hits == 0)
+        {
+            room_id = n_rooms + 1;
+            n_rooms = room_id;
+        }
+        else
+        {
+            return;
+        }
+        last_room_id = room_id;
+
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // emplace room
+
+        for (r = r1; r <= r2; r++)
+        {
+            for (c = c1; c <= c2; c++)
+            {
+                if ((cell[r][c] & ENTRANCE) == ENTRANCE)
+                {
+                    cell[r][c] &= ~ ESPACE;
+                }
+                else if ((cell[r][c] & PERIMETER) == PERIMETER)
+                {
+                    cell[r][c] &= ~ PERIMETER;
+                }
+                cell[r][c] |= ROOM | (uint)(room_id << 6);
+            }
+        }
+        int height = ((r2 - r1) + 1) * 10;
+        int width = ((c2 - c1) + 1) * 10;
+
+        Dictionary<string, int> room_data = new Dictionary<string,int>()
+        {
+            { "id", room_id },
+            { "row", r1 },
+            { "col", c1 },
+            { "north", r1 },
+            { "south", r2 },
+            { "west", c1 },
+            { "east", c2 },
+            { "height", height },
+            { "width", width },
+            { "area", height * width }
+            
+        };
+        room.Add(room_id, room_data);
+
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // block corridors from room boundary
+        // check for door openings from adjacent rooms
+
+        for (r = r1 - 1; r <= r2 + 1; r++)
+        {
+            if ((cell[r][c1 - 1] & (ROOM | ENTRANCE)) != (ROOM | ENTRANCE))
+            {
+                cell[r][c1 - 1] |= PERIMETER;
+            }
+            if ((cell[r][c2 + 1] & (ROOM | ENTRANCE)) != (ROOM | ENTRANCE))
+            {
+                cell[r][c2 + 1] |= PERIMETER;
+            }
+        }
+        for (c = c1 - 1; c <= c2 + 1; c++)
+        {
+            if ((cell[r1 - 1][c] & (ROOM | ENTRANCE)) != (ROOM | ENTRANCE))
+            {
+                cell[r1 - 1][c] |= PERIMETER;
+            }
+            if ((cell[r2 + 1][c] & (ROOM | ENTRANCE)) != (ROOM | ENTRANCE))
+            {
+                cell[r2 + 1][c] |= PERIMETER;
+            }
+        }
+    }
+
+    private void set_room(Dictionary<string,int> proto)
+    {
+        int i_base = room_base;
+        int radix = room_radix;
+
+        if(!proto.ContainsKey("height"))
+        {
+            if (proto.ContainsKey("i"))
+            {
+                int a = n_i - i_base - proto["i"];
+                if (a < 0) a = 0;
+                int r = (a < radix) ? a : radix;
+
+                proto.Add("height", Random.Range(0, r) + i_base);
+            }
+            else
+            {
+                proto.Add("height", Random.Range(0, radix) + i_base);
+            }
+        }
+        if(!proto.ContainsKey("width"))
+        {
+            if (proto.ContainsKey("j"))
+            {
+                int a = n_j - i_base - proto["j"];
+                if (a < 0) a = 0;
+                int r = (a < radix) ? a : radix;
+
+                proto.Add("width", Random.Range(0, r) + i_base);
+            }
+            else
+            {
+                proto.Add("width", Random.Range(0, radix) + i_base);
+            }
+        }
+        
+        if(!proto.ContainsKey("i"))
+        {
+            proto.Add("i", Random.Range(0, n_i - proto["height"]));
+        }
+        if(!proto.ContainsKey("j"))
+        {
+            proto.Add("j", Random.Range(0, n_j - proto["width"]));
+        }
+    }
+
+    private Dictionary<string,int> sound_room(int r1,int c1,int r2,int c2)
+    {
+        Dictionary<string, int> hit = new Dictionary<string,int>();
+
+        for (int r = r1; r <= r2; r++)
+        {
+            for (int c = c1; c <= c2; c++)
+            {
+                if ((cell[r][c] & BLOCKED) == BLOCKED)
+                {
+                    hit.Add("blocked", 1);
+                    return hit;
+                }
+                if ((cell[r][c] & ROOM) == ROOM)
+                {
+                    uint id = (cell[r][c] & ROOM_ID) >> 6;
+
+                    if(hit.ContainsKey(id.ToString()))
+                        hit[id.ToString()]++;
+                    else
+                        hit.Add(id.ToString(), 1);
+                }
+            }
+        }
+        return hit;
     }
 }
