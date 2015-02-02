@@ -110,35 +110,35 @@ public class dungeon
         }
     };
 
-    protected static uint NOTHING     = 0x00000000;
+    public static uint NOTHING     = 0x00000000;
 
-    protected static uint BLOCKED = 0x00000001;
-    protected static uint ROOM = 0x00000002;
-    protected static uint CORRIDOR = 0x00000004;
+    public static uint BLOCKED = 0x00000001;
+    public static uint ROOM = 0x00000002;
+    public static uint CORRIDOR = 0x00000004;
     //                 0x00000008;
-    protected static uint PERIMETER = 0x00000010;
-    protected static uint ENTRANCE = 0x00000020;
-    protected static uint ROOM_ID = 0x0000FFC0;
+    public static uint PERIMETER = 0x00000010;
+    public static uint ENTRANCE = 0x00000020;
+    public static uint ROOM_ID = 0x0000FFC0;
 
-    protected static uint ARCH = 0x00010000;
-    protected static uint DOOR = 0x00020000;
-    protected static uint LOCKED = 0x00040000;
-    protected static uint TRAPPED = 0x00080000;
-    protected static uint SECRET = 0x00100000;
-    protected static uint PORTC = 0x00200000;
-    protected static uint STAIR_DN = 0x00400000;
-    protected static uint STAIR_UP = 0x00800000;
+    public static uint ARCH = 0x00010000;
+    public static uint DOOR = 0x00020000;
+    public static uint LOCKED = 0x00040000;
+    public static uint TRAPPED = 0x00080000;
+    public static uint SECRET = 0x00100000;
+    public static uint PORTC = 0x00200000;
+    public static uint STAIR_DN = 0x00400000;
+    public static uint STAIR_UP = 0x00800000;
 
-    protected static uint LABEL = 0xFF000000;
+    public static uint LABEL = 0xFF000000;
 
-    protected static uint OPENSPACE = ROOM | CORRIDOR;
-    protected static uint DOORSPACE = ARCH | DOOR | LOCKED | TRAPPED | SECRET | PORTC;
-    protected static uint ESPACE = ENTRANCE | DOORSPACE | 0xFF000000;
-    protected static uint STAIRS = STAIR_DN | STAIR_UP;
+    public static uint OPENSPACE = ROOM | CORRIDOR;
+    public static uint DOORSPACE = ARCH | DOOR | LOCKED | TRAPPED | SECRET | PORTC;
+    public static uint ESPACE = ENTRANCE | DOORSPACE | 0xFF000000;
+    public static uint STAIRS = STAIR_DN | STAIR_UP;
 
-    protected static uint BLOCK_ROOM = BLOCKED | ROOM;
-    protected static uint BLOCK_CORR = BLOCKED | PERIMETER | CORRIDOR;
-    protected static uint BLOCK_DOOR = BLOCKED | DOORSPACE;
+    public static uint BLOCK_ROOM = BLOCKED | ROOM;
+    public static uint BLOCK_CORR = BLOCKED | PERIMETER | CORRIDOR;
+    public static uint BLOCK_DOOR = BLOCKED | DOORSPACE;
 
     public int seed;
     public int n_rows;
@@ -178,7 +178,7 @@ public class dungeon
         dungeon_layout = "None";
         room_min = 3;
         room_max = 9;
-        room_layout = "Scattered";
+        room_layout = "Packed";
         corridor_layout = "Bent";
         remove_deadends = 50;
         add_stairs = 2;
@@ -214,9 +214,12 @@ public class dungeon
 
     private void init_cells()
     {
-        for(int r = 0; r <= n_rows; r++)
+        cell = new uint[n_rows][];
+
+        for(int r = 0; r < n_rows; r++)
         {
-            for(int c = 0; c <= n_cols; c++)
+            cell[r] = new uint[n_cols];
+            for(int c = 0; c < n_cols; c++)
             {
                 cell[r][c] = NOTHING;
             }
@@ -326,8 +329,8 @@ public class dungeon
         int r2 = ((proto["i"] + proto["height"]) * 2) - 1;
         int c2 = ((proto["j"] + proto["width"] ) * 2) - 1;
 
-        if (r1 < 1 || r2 > max_row) return;
-        if (c1 < 1 || c2 > max_col)return;
+        if (r1 < 0 || r2 >= max_row) return;
+        if (c1 < 0 || c2 >= max_col)return;
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // check for collisions with existing rooms
