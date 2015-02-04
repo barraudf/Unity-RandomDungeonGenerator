@@ -162,7 +162,7 @@ public class dungeon
     public int room_radix;
     public uint[][] cell;
     public int last_room_id;
-    public SortedList<int, Dictionary<string, int>> room;
+    public SortedList<int, Dictionary<string, int>> rooms;
     public Dictionary<string, int> connect;
 
     public dungeon()
@@ -202,13 +202,13 @@ public class dungeon
         room_base = (int)((min + 1) / 2);
         room_radix = (int)((max - min) / 2) + 1;
 
-        room = new SortedList<int, Dictionary<string, int>>();
+        rooms = new SortedList<int, Dictionary<string, int>>();
         connect = new Dictionary<string,int>();
 
         init_cells();
         emplace_rooms();
         open_rooms();
-        //$dungeon = &label_rooms($dungeon);
+        label_rooms();
         //$dungeon = &corridors($dungeon);
         //$dungeon = &emplace_stairs($dungeon) if ($dungeon->{'add_stairs'});
         //$dungeon = &clean_dungeon($dungeon);
@@ -388,7 +388,7 @@ public class dungeon
             { "area", height * width }
             
         };
-        room.Add(room_id, room_data);
+        rooms.Add(room_id, room_data);
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // block corridors from room boundary
@@ -495,7 +495,7 @@ public class dungeon
     {
         for (int id = 1; id <= n_rooms; id++)
         {
-            open_room(room[id]);
+            open_room(rooms[id]);
         }
         connect.Clear();
     }
@@ -531,15 +531,15 @@ public class dungeon
                 if (sill.ContainsKey("out_id"))
                 {
                     out_id = (int)sill["out_id"];
-                    string connect = Math.Min(room["id"], out_id).ToString() + "," + Math.Max(room["id"], out_id).ToString();
+                    string strConnect = Math.Min(room["id"], out_id).ToString() + "," + Math.Max(room["id"], out_id).ToString();
 
-                    if (this.connect.ContainsKey(connect))
+                    if (connect.ContainsKey(strConnect))
                     {
-                        this.connect[connect]++;
+                        connect[strConnect]++;
                         doContinue = true;
                     }
                     else
-                        this.connect.Add(connect, 1);
+                        connect.Add(strConnect, 1);
                 }
             }
             while (doContinue);
@@ -732,5 +732,23 @@ public class dungeon
         Dictionary<string, object> retVal = Source[Start];
         Source.RemoveRange(Start, 1);
         return retVal;
+    }
+
+    private void label_rooms()
+    {
+        for (int id = 1; id <= n_rooms; id++)
+        {
+            Dictionary<string, int> room = rooms[id];
+            string label = room["id"].ToString();
+            int len = label.Length;
+            int label_r = (int)(room["north"] + room["south"]) / 2;
+            int label_c = (int)((room["west"] + room["east"] - len) / 2) + 1;
+
+            for (int c = 0; c < len; c++)
+            {
+                char ch = label[c];
+                cell[label_r][label_c + c] |= (Convert.ToUInt32(ch) << 24);
+            }
+        }
     }
 }
