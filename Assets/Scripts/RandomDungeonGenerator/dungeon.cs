@@ -163,6 +163,7 @@ public class dungeon
     public uint[][] cell;
     public int last_room_id;
     public SortedList<int, Dictionary<string, int>> room;
+    public Dictionary<string, int> connect;
 
     public dungeon()
     {
@@ -202,10 +203,11 @@ public class dungeon
         room_radix = (int)((max - min) / 2) + 1;
 
         room = new SortedList<int, Dictionary<string, int>>();
+        connect = new Dictionary<string,int>();
 
         init_cells();
         emplace_rooms();
-        //$dungeon = &open_rooms($dungeon);
+        open_rooms();
         //$dungeon = &label_rooms($dungeon);
         //$dungeon = &corridors($dungeon);
         //$dungeon = &emplace_stairs($dungeon) if ($dungeon->{'add_stairs'});
@@ -214,12 +216,12 @@ public class dungeon
 
     private void init_cells()
     {
-        cell = new uint[n_rows][];
+        cell = new uint[n_rows+1][];
 
-        for(int r = 0; r < n_rows; r++)
+        for(int r = 0; r <= n_rows; r++)
         {
-            cell[r] = new uint[n_cols];
-            for(int c = 0; c < n_cols; c++)
+            cell[r] = new uint[n_cols+1];
+            for(int c = 0; c <= n_cols; c++)
             {
                 cell[r][c] = NOTHING;
             }
@@ -284,7 +286,7 @@ public class dungeon
             {
                 int c = (j * 2) + 1;
 
-                if ((cell[r][c] & ROOM) == ROOM) continue;
+                if ((cell[r][c] & ROOM) != NOTHING) continue;
                 if ((i == 0 || j == 0) && Random.value > 0.5) continue;
 
                 Dictionary<string, int> proto = new Dictionary<string,int>() { {"i",i}, {"j",j} };
@@ -329,8 +331,8 @@ public class dungeon
         int r2 = ((proto["i"] + proto["height"]) * 2) - 1;
         int c2 = ((proto["j"] + proto["width"] ) * 2) - 1;
 
-        if (r1 < 0 || r2 >= max_row) return;
-        if (c1 < 0 || c2 >= max_col)return;
+        if (r1 < 1 || r2 > max_row) return;
+        if (c1 < 1 || c2 > max_col) return;
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // check for collisions with existing rooms
@@ -358,11 +360,11 @@ public class dungeon
         {
             for (c = c1; c <= c2; c++)
             {
-                if ((cell[r][c] & ENTRANCE) == ENTRANCE)
+                if ((cell[r][c] & ENTRANCE) != NOTHING)
                 {
                     cell[r][c] &= ~ ESPACE;
                 }
-                else if ((cell[r][c] & PERIMETER) == PERIMETER)
+                else if ((cell[r][c] & PERIMETER) != NOTHING)
                 {
                     cell[r][c] &= ~ PERIMETER;
                 }
@@ -394,22 +396,22 @@ public class dungeon
 
         for (r = r1 - 1; r <= r2 + 1; r++)
         {
-            if ((cell[r][c1 - 1] & (ROOM | ENTRANCE)) != (ROOM | ENTRANCE))
+            if ((cell[r][c1 - 1] & (ROOM | ENTRANCE)) == NOTHING)
             {
                 cell[r][c1 - 1] |= PERIMETER;
             }
-            if ((cell[r][c2 + 1] & (ROOM | ENTRANCE)) != (ROOM | ENTRANCE))
+            if ((cell[r][c2 + 1] & (ROOM | ENTRANCE)) == NOTHING)
             {
                 cell[r][c2 + 1] |= PERIMETER;
             }
         }
         for (c = c1 - 1; c <= c2 + 1; c++)
         {
-            if ((cell[r1 - 1][c] & (ROOM | ENTRANCE)) != (ROOM | ENTRANCE))
+            if ((cell[r1 - 1][c] & (ROOM | ENTRANCE)) == NOTHING)
             {
                 cell[r1 - 1][c] |= PERIMETER;
             }
-            if ((cell[r2 + 1][c] & (ROOM | ENTRANCE)) != (ROOM | ENTRANCE))
+            if ((cell[r2 + 1][c] & (ROOM | ENTRANCE)) == NOTHING)
             {
                 cell[r2 + 1][c] |= PERIMETER;
             }
@@ -470,12 +472,12 @@ public class dungeon
         {
             for (int c = c1; c <= c2; c++)
             {
-                if ((cell[r][c] & BLOCKED) == BLOCKED)
+                if ((cell[r][c] & BLOCKED) != NOTHING)
                 {
                     hit.Add("blocked", 1);
                     return hit;
                 }
-                if ((cell[r][c] & ROOM) == ROOM)
+                if ((cell[r][c] & ROOM) != NOTHING)
                 {
                     uint id = (cell[r][c] & ROOM_ID) >> 6;
 
@@ -487,5 +489,248 @@ public class dungeon
             }
         }
         return hit;
+    }
+
+    private void open_rooms()
+    {
+        for (int id = 1; id <= n_rooms; id++)
+        {
+            open_room(room[id]);
+        }
+        connect.Clear();
+    }
+
+    private void open_room(Dictionary<string, int> room)
+    {
+        List<Dictionary<string, object>> list = door_sills(room);
+        if(list == null || list.Count == 0) return;
+        int n_opens = alloc_opens(room);
+
+        for (int i = 0; i < n_opens; i++)
+        {
+            Dictionary<string, object> sill = null;
+            int door_r = 0;
+            int door_c = 0;
+            uint door_cell = 0;
+            bool doContinue = false;
+            do
+            {
+                doContinue = false;
+                do
+                {
+                    sill = Splice(list, Random.Range(0, list.Count));
+                    if (sill == null)
+                        goto next;
+                    door_r = (int)sill["door_r"];
+                    door_c = (int)sill["door_c"];
+                    door_cell = cell[door_r][door_c];
+                }
+                while ((door_cell & DOORSPACE) != NOTHING);
+
+                int out_id = 0;
+                if (sill.ContainsKey("out_id"))
+                {
+                    out_id = (int)sill["out_id"];
+                    string connect = Math.Min(room["id"], out_id).ToString() + "," + Math.Max(room["id"], out_id).ToString();
+
+                    if (this.connect.ContainsKey(connect))
+                    {
+                        this.connect[connect]++;
+                        doContinue = true;
+                    }
+                    else
+                        this.connect.Add(connect, 1);
+                }
+            }
+            while (doContinue);
+
+            int open_r = (int)sill["sill_r"];
+            int open_c = (int)sill["sill_c"];
+            string open_dir = (string)sill["dir"];
+
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // open door
+
+            for (int x = 0; x < 3; x++)
+            {
+                int r = open_r + (di[open_dir] * x);
+                int c = open_c + (dj[open_dir] * x);
+
+                cell[r][c] &= ~ PERIMETER;
+                cell[r][c] |= ENTRANCE;
+            }
+            uint door_type = set_door_type();
+            Dictionary<string, object> door =  new Dictionary<string,object>() { {"row", door_r}, {"col", door_c} };
+
+            if (door_type == ARCH)
+            {
+                cell[door_r][door_c] |= ARCH;
+                door.Add("key", "arch"); door.Add("type", "Archway");
+            }
+            else if (door_type == DOOR)
+            {
+                cell[door_r][door_c] |= DOOR;
+                cell[door_r][door_c] |= (Convert.ToUInt32('o') << 24);
+                door.Add("key", "open"); door.Add("type", "Unlocked Door");
+            }
+            else if (door_type == LOCKED)
+            {
+                cell[door_r][door_c] |= LOCKED;
+                cell[door_r][door_c] |= (Convert.ToUInt32('x') << 24);
+                door.Add("key", "lock"); door.Add("type", "Locked Door");
+            }
+            else if (door_type == TRAPPED)
+            {
+                cell[door_r][door_c] |= TRAPPED;
+                cell[door_r][door_c] |= (Convert.ToUInt32('t') << 24);
+                door.Add("key", "trap"); door.Add("type", "Trapped Door");
+            }
+            else if (door_type == SECRET)
+            {
+                cell[door_r][door_c] |= SECRET;
+                cell[door_r][door_c] |= (Convert.ToUInt32('s') << 24);
+                door.Add("key", "secret"); door.Add("type", "Secret Door");
+            }
+            else if (door_type == PORTC)
+            {
+                cell[door_r][door_c] |= PORTC;
+                cell[door_r][door_c] |= (Convert.ToUInt32('#') << 24);
+                door.Add("key", "portc"); door.Add("type", "Portcullis");
+            }
+
+            if(sill.ContainsKey("out_id"))
+                door.Add("out_id", (int)sill["out_id"]);
+           
+            //push(@{ $room->{'door'}{$open_dir} },$door) if ($door);
+        }
+        next: ;
+    }
+
+    private List<Dictionary<string, object>> door_sills(Dictionary<string, int> room)
+    {
+        List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
+
+        if (room["north"] >= 3)
+        {
+            for (int c = room["west"]; c <= room["east"]; c += 2)
+            {
+                Dictionary<string, object> sill = check_sill(room, room["north"], c, "north");
+                if (sill != null)
+                    list.Add(sill);
+            }
+        }
+        if (room["south"] <= (n_rows - 3))
+        {
+            for (int c = room["west"]; c <= room["east"]; c += 2)
+            {
+                Dictionary<string, object> sill = check_sill(room, room["south"], c, "south");
+                if (sill != null)
+                    list.Add(sill);
+            }
+        }
+        if (room["west"] >= 3)
+        {
+            for (int r = room["north"]; r <= room["south"]; r += 2)
+            {
+                Dictionary<string, object> sill = check_sill(room, r, room["west"], "west");
+                if (sill != null)
+                    list.Add(sill);
+            }
+        }
+        if (room["east"] <= (n_cols - 3))
+        {
+            for (int r = room["north"]; r <= room["south"]; r += 2)
+            {
+                Dictionary<string, object> sill = check_sill(room, r, room["east"], "east");
+                if (sill != null)
+                    list.Add(sill);
+        }
+        }
+        return shuffle(list);
+    }
+
+    private Dictionary<string, object> check_sill(Dictionary<string, int> room, int sill_r, int sill_c, string dir)
+    {
+        int door_r = sill_r + di[dir];
+        int door_c = sill_c + dj[dir];
+        uint door_cell = cell[door_r][door_c];
+        if ((door_cell & PERIMETER) == NOTHING) return null;
+        if ((door_cell & BLOCK_DOOR) != NOTHING) return null;
+        int out_r  = door_r + di[dir];
+        int out_c  = door_c + dj[dir];
+        uint out_cell = cell[out_r][out_c];
+        if ((out_cell & BLOCKED) != NOTHING) return null;
+
+        Dictionary<string, object> ret = new Dictionary<string, object>()
+        {
+            {"sill_r",    sill_r},
+            {"sill_c",    sill_c},
+            {"dir",       dir},
+            {"door_r",    door_r},
+            {"door_c",    door_c}
+        };
+
+        if((out_cell & ROOM) != NOTHING)
+        {
+            int out_id = (int)(out_cell & ROOM_ID) >> 6;
+            if (out_id == room["id"])
+                return null;
+            ret.Add("out_id", out_id);
+        }
+        
+        return ret;
+    }
+
+    private List<Dictionary<string, object>> shuffle(List<Dictionary<string, object>> list)
+    {
+        int n = list.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = Random.Range(0, n + 1);
+            Dictionary<string, object> value = list[k];
+            list[k] = list[n];
+            list[n] = value;
+        }
+
+        return list;
+    }
+
+    private int alloc_opens(Dictionary<string, int> room)
+    {
+        int room_h = ((room["south"] - room["north"]) / 2) + 1;
+        int room_w = ((room["east"] - room["west"]) / 2) + 1;
+        int flumph = (int)Math.Sqrt(room_w * room_h);
+        int n_opens = flumph + Random.Range(0, flumph);
+
+        return n_opens;
+    }
+
+    private uint set_door_type()
+    {
+        int i = Random.Range(0, 110);
+
+        if (i < 15)
+            return ARCH;
+        else if (i < 60)
+            return DOOR;
+        else if (i < 75)
+            return LOCKED;
+        else if (i < 90)
+            return TRAPPED;
+        else if (i < 100)
+            return SECRET;
+        else
+            return PORTC;
+    }
+
+    public Dictionary<string, object> Splice(List<Dictionary<string, object>> Source, int Start)
+    {
+        if (Source.Count == 0)
+            return null;
+
+        Dictionary<string, object> retVal = Source[Start];
+        Source.RemoveRange(Start, 1);
+        return retVal;
     }
 }
