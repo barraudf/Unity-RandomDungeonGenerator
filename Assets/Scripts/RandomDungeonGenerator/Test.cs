@@ -25,6 +25,8 @@ public class Test : MonoBehaviour
                     map += "#";
                 else if ((d.cell[r][c] & dungeon.ROOM) != dungeon.NOTHING)
                     map += ".";
+                else if ((d.cell[r][c] & dungeon.CORRIDOR) != dungeon.NOTHING)
+                    map += ".";
                 else
                     map += " ";
             }

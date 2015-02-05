@@ -209,7 +209,7 @@ public class dungeon
         emplace_rooms();
         open_rooms();
         label_rooms();
-        //$dungeon = &corridors($dungeon);
+        corridors();
         //$dungeon = &emplace_stairs($dungeon) if ($dungeon->{'add_stairs'});
         //$dungeon = &clean_dungeon($dungeon);
     }
@@ -297,16 +297,17 @@ public class dungeon
 
     private void scatter_rooms()
     {
-        alloc_rooms();
-        for (int i = 0; i < n_rooms; i++)
+        int n_r = alloc_rooms();
+        for (int i = 0; i < n_r; i++)
             emplace_room();
     }
 
-    private void alloc_rooms()
+    private int alloc_rooms()
     {
         int dungeon_area = n_cols * n_rows;
         int room_area = room_max * room_max;
-        n_rooms = (int)dungeon_area / room_area;
+        int n_r = (int)dungeon_area / room_area;
+        return n_r;
     }
 
     private void emplace_room(Dictionary<string, int> proto = null)
@@ -681,14 +682,14 @@ public class dungeon
         return ret;
     }
 
-    private List<Dictionary<string, object>> shuffle(List<Dictionary<string, object>> list)
+    private static List<T> shuffle<T>(List<T> list)
     {
         int n = list.Count;
         while (n > 1)
         {
             n--;
             int k = Random.Range(0, n + 1);
-            Dictionary<string, object> value = list[k];
+            T value = list[k];
             list[k] = list[n];
             list[n] = value;
         }
@@ -750,5 +751,105 @@ public class dungeon
                 cell[label_r][label_c + c] |= (Convert.ToUInt32(ch) << 24);
             }
         }
+    }
+
+    private void corridors()
+    {
+        for (int i = 1; i < n_i; i++)
+        {
+            int r = (i * 2) + 1;
+            for (int j = 1; j < n_j; j++)
+            {
+                int c = (j * 2) + 1;
+
+                if ((cell[r][c] & CORRIDOR) != NOTHING) continue;
+                tunnel(i,j);
+            }
+        }
+    }
+
+    private void tunnel(int i, int j, string last_dir = null)
+    {
+        string[] dirs = tunnel_dirs(last_dir);
+
+        foreach(string dir in dirs)
+        {
+            if (open_tunnel(i,j,dir))
+            {
+                int next_i = i + di[dir];
+                int next_j = j + dj[dir];
+
+                tunnel(next_i,next_j,dir);
+            }
+        }
+    }
+
+    private string[] tunnel_dirs(string last_dir)
+    {
+        int p = corridor_layouts[corridor_layout];
+        List<string> dirs = shuffle(new List<string>(dj.Keys));
+
+        if (last_dir != null && p > 0 && Random.Range(0, 100) < p)
+                dirs.InsertRange(0, new string[] { last_dir });
+        
+        return dirs.ToArray();
+    }
+
+    private bool open_tunnel(int i, int j, string dir)
+    {
+        int this_r = (i * 2) + 1;
+        int this_c = (j * 2) + 1;
+        int next_r = ((i + di[dir]) * 2) + 1;
+        int next_c = ((j + dj[dir]) * 2) + 1;
+        int mid_r = (this_r + next_r) / 2;
+        int mid_c = (this_c + next_c) / 2;
+
+        if (sound_tunnel(mid_r,mid_c,next_r,next_c))
+        {
+            return delve_tunnel(this_r,this_c,next_r,next_c);
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    private bool sound_tunnel(int mid_r, int mid_c, int next_r, int next_c)
+    {
+        if (next_r < 0 || next_r > n_rows) return false;
+        if (next_c < 0 || next_c > n_cols) return false;
+        
+        int r1 = Math.Min(mid_r,next_r);
+        int r2 = Math.Max(mid_r, next_r);
+        int c1 = Math.Min(mid_c, next_c);
+        int c2 = Math.Max(mid_c, next_c);
+
+        for (int r = r1; r <= r2; r++)
+        {
+            for (int c = c1; c <= c2; c++)
+            {
+                if ((cell[r][c] & BLOCK_CORR) != NOTHING) return false;
+            }
+        }
+
+        return true;
+    }
+
+    private bool delve_tunnel(int this_r, int this_c, int next_r, int next_c)
+    {
+        int r1 = Math.Min(this_r,next_r);
+        int r2 = Math.Max(this_r, next_r);
+        int c1 = Math.Min(this_c, next_c);
+        int c2 = Math.Max(this_c, next_c);
+
+        for (int r = r1; r <= r2; r++)
+        {
+            for (int c = c1; c <= c2; c++)
+            {
+                cell[r][c] &= ~ ENTRANCE;
+                cell[r][c] |= CORRIDOR;
+            }
+        }
+        return true;
     }
 }
