@@ -19,14 +19,14 @@ public class Test : MonoBehaviour
                 map += "\n";
             for (int c = 0; c <= d.n_cols; c++)
             {
-                if ((d.cell[r][c] & dungeon.PERIMETER) != dungeon.NOTHING)
-                    map += "0";
-                else if ((d.cell[r][c] & dungeon.DOORSPACE) != dungeon.NOTHING)
-                    map += "#";
+                //if ((d.cell[r][c] & dungeon.PERIMETER) != dungeon.NOTHING)
+                //    map += "0";
+                if ((d.cell[r][c] & dungeon.DOORSPACE) != dungeon.NOTHING)
+                    map += "-";
                 else if ((d.cell[r][c] & dungeon.ROOM) != dungeon.NOTHING)
-                    map += ".";
+                    map += "#";
                 else if ((d.cell[r][c] & dungeon.CORRIDOR) != dungeon.NOTHING)
-                    map += ".";
+                    map += "#";
                 else
                     map += " ";
             }
