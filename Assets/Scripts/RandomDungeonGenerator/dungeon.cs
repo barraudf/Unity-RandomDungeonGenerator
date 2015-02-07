@@ -1,8 +1,5 @@
 ﻿using System;
-using UnityEngine;
 using System.Collections.Generic;
-
-using Random = UnityEngine.Random;
 
 public class dungeon
 {
@@ -166,6 +163,7 @@ public class dungeon
     public List<Dictionary<string, object>> doors;
     public List<Dictionary<string, object>> stairs;
     public Dictionary<string, int> connect;
+    public Random rnd;
 
     public dungeon()
     {
@@ -231,7 +229,7 @@ public class dungeon
                 cell[r][c] = NOTHING;
             }
         }
-        Random.seed = seed;
+        rnd = new Random(seed);
 
         if (dungeon_layouts.ContainsKey(dungeon_layout))
         {
@@ -252,7 +250,7 @@ public class dungeon
         {
             for (int c = 0; c <= n_cols; c++)
             {
-                float d = Mathf.Sqrt( Mathf.Pow(r - center_r, 2) + Mathf.Pow(c - center_c, 2));
+                double d = Math.Sqrt( Math.Pow(r - center_r, 2) + Math.Pow(c - center_c, 2));
                 if (d > center_c)
                     cell[r][c] = BLOCKED;
             }
@@ -292,7 +290,7 @@ public class dungeon
                 int c = (j * 2) + 1;
 
                 if ((cell[r][c] & ROOM) != NOTHING) continue;
-                if ((i == 0 || j == 0) && (Random.Range(0,2) == 1)) continue;
+                if ((i == 0 || j == 0) && (rnd.Next(2) == 1)) continue;
 
                 Dictionary<string, int> proto = new Dictionary<string,int>() { {"i",i}, {"j",j} };
                 emplace_room(proto);
@@ -438,11 +436,11 @@ public class dungeon
                 if (a < 0) a = 0;
                 int r = (a < radix) ? a : radix;
 
-                proto.Add("height", Random.Range(0, r) + i_base);
+                proto.Add("height", rnd.Next(r) + i_base);
             }
             else
             {
-                proto.Add("height", Random.Range(0, radix) + i_base);
+                proto.Add("height", rnd.Next(radix) + i_base);
             }
         }
         if(!proto.ContainsKey("width"))
@@ -453,21 +451,21 @@ public class dungeon
                 if (a < 0) a = 0;
                 int r = (a < radix) ? a : radix;
 
-                proto.Add("width", Random.Range(0, r) + i_base);
+                proto.Add("width", rnd.Next(r) + i_base);
             }
             else
             {
-                proto.Add("width", Random.Range(0, radix) + i_base);
+                proto.Add("width", rnd.Next(radix) + i_base);
             }
         }
         
         if(!proto.ContainsKey("i"))
         {
-            proto.Add("i", Random.Range(0, n_i - proto["height"]));
+            proto.Add("i", rnd.Next(n_i - proto["height"]));
         }
         if(!proto.ContainsKey("j"))
         {
-            proto.Add("j", Random.Range(0, n_j - proto["width"]));
+            proto.Add("j", rnd.Next(n_j - proto["width"]));
         }
     }
 
@@ -525,7 +523,7 @@ public class dungeon
                 doContinue = false;
                 do
                 {
-                    sill = Splice(list, Random.Range(0, list.Count));
+                    sill = Splice(list, rnd.Next(list.Count));
                     if (sill == null)
                         goto next;
                     door_r = (int)sill["door_r"];
@@ -538,7 +536,7 @@ public class dungeon
                 if (sill.ContainsKey("out_id"))
                 {
                     out_id = (int)sill["out_id"];
-                    string strConnect = Mathf.Min((int)room["id"], out_id).ToString() + "," + Mathf.Max((int)room["id"], out_id).ToString();
+                    string strConnect = Math.Min((int)room["id"], out_id).ToString() + "," + Math.Max((int)room["id"], out_id).ToString();
 
                     if (connect.ContainsKey(strConnect))
                     {
@@ -693,13 +691,13 @@ public class dungeon
         return ret;
     }
 
-    private static List<T> shuffle<T>(List<T> list)
+    private List<T> shuffle<T>(List<T> list)
     {
         int n = list.Count;
         while (n > 1)
         {
             n--;
-            int k = Random.Range(0, n + 1);
+            int k = rnd.Next(n + 1);
             T value = list[k];
             list[k] = list[n];
             list[n] = value;
@@ -712,15 +710,15 @@ public class dungeon
     {
         int room_h = (((int)room["south"] - (int)room["north"]) / 2) + 1;
         int room_w = (((int)room["east"] - (int)room["west"]) / 2) + 1;
-        int flumph = (int)Mathf.Sqrt(room_w * room_h);
-        int n_opens = flumph + Random.Range(0, flumph);
+        int flumph = (int)Math.Sqrt(room_w * room_h);
+        int n_opens = flumph + rnd.Next(flumph);
 
         return n_opens;
     }
 
     private uint set_door_type()
     {
-        int i = Random.Range(0, 110);
+        int i = rnd.Next(110);
 
         if (i < 15)
             return ARCH;
@@ -800,7 +798,7 @@ public class dungeon
         int p = corridor_layouts[corridor_layout];
         List<string> dirs = shuffle(new List<string>(dj.Keys));
 
-        if (last_dir != null && p > 0 && Random.Range(0, 100) < p)
+        if (last_dir != null && p > 0 && rnd.Next(100) < p)
                 dirs.InsertRange(0, new string[] { last_dir });
         
         return dirs.ToArray();
@@ -830,10 +828,10 @@ public class dungeon
         if (next_r < 0 || next_r > n_rows) return false;
         if (next_c < 0 || next_c > n_cols) return false;
         
-        int r1 = Mathf.Min(mid_r,next_r);
-        int r2 = Mathf.Max(mid_r, next_r);
-        int c1 = Mathf.Min(mid_c, next_c);
-        int c2 = Mathf.Max(mid_c, next_c);
+        int r1 = Math.Min(mid_r,next_r);
+        int r2 = Math.Max(mid_r, next_r);
+        int c1 = Math.Min(mid_c, next_c);
+        int c2 = Math.Max(mid_c, next_c);
 
         for (int r = r1; r <= r2; r++)
         {
@@ -848,10 +846,10 @@ public class dungeon
 
     private bool delve_tunnel(int this_r, int this_c, int next_r, int next_c)
     {
-        int r1 = Mathf.Min(this_r, next_r);
-        int r2 = Mathf.Max(this_r, next_r);
-        int c1 = Mathf.Min(this_c, next_c);
-        int c2 = Mathf.Max(this_c, next_c);
+        int r1 = Math.Min(this_r, next_r);
+        int r2 = Math.Max(this_r, next_r);
+        int c1 = Math.Min(this_c, next_c);
+        int c2 = Math.Max(this_c, next_c);
 
         for (int r = r1; r <= r2; r++)
         {
@@ -873,11 +871,11 @@ public class dungeon
 
         for (int i = 0; i < n; i++)
         {
-            Dictionary<string, object> stair = Splice(list,Random.Range(0, list.Count));
+            Dictionary<string, object> stair = Splice(list,rnd.Next(list.Count));
             //if(stair == null) return;
             int r = (int)stair["row"];
             int c = (int)stair["col"];
-            int type = (i < 2) ? i : Random.Range(0, 2);
+            int type = (i < 2) ? i : rnd.Next(2);
 
             if (type == 0)
             {
@@ -987,7 +985,7 @@ public class dungeon
 
                 if((cell[r][c] & OPENSPACE) == NOTHING) continue;
                 if((cell[r][c] & STAIRS) != NOTHING) continue;
-                if( (all || (Random.Range(0,100)) < p) == false) continue;
+                if( (all || (rnd.Next(100)) < p) == false) continue;
 
                 collapse(r,c,xc);
             }
