@@ -110,35 +110,35 @@ public class dungeon
         }
     };
 
-    public static uint NOTHING     = 0x00000000;
+    public static uint NOTHING      = 0x00000000;
 
-    public static uint BLOCKED = 0x00000001;
-    public static uint ROOM = 0x00000002;
-    public static uint CORRIDOR = 0x00000004;
-    //                 0x00000008;
-    public static uint PERIMETER = 0x00000010;
-    public static uint ENTRANCE = 0x00000020;
-    public static uint ROOM_ID = 0x0000FFC0;
+    public static uint BLOCKED      = 0x00000001;
+    public static uint ROOM         = 0x00000002;
+    public static uint CORRIDOR     = 0x00000004;
+    //                                0x00000008;
+    public static uint PERIMETER    = 0x00000010;
+    public static uint ENTRANCE     = 0x00000020;
+    public static uint ROOM_ID      = 0x0000FFC0;
 
-    public static uint ARCH = 0x00010000;
-    public static uint DOOR = 0x00020000;
-    public static uint LOCKED = 0x00040000;
-    public static uint TRAPPED = 0x00080000;
-    public static uint SECRET = 0x00100000;
-    public static uint PORTC = 0x00200000;
-    public static uint STAIR_DN = 0x00400000;
-    public static uint STAIR_UP = 0x00800000;
+    public static uint ARCH         = 0x00010000;
+    public static uint DOOR         = 0x00020000;
+    public static uint LOCKED       = 0x00040000;
+    public static uint TRAPPED      = 0x00080000;
+    public static uint SECRET       = 0x00100000;
+    public static uint PORTC        = 0x00200000;
+    public static uint STAIR_DN     = 0x00400000;
+    public static uint STAIR_UP     = 0x00800000;
 
-    public static uint LABEL = 0xFF000000;
+    public static uint LABEL        = 0xFF000000;
 
-    public static uint OPENSPACE = ROOM | CORRIDOR;
-    public static uint DOORSPACE = ARCH | DOOR | LOCKED | TRAPPED | SECRET | PORTC;
-    public static uint ESPACE = ENTRANCE | DOORSPACE | 0xFF000000;
-    public static uint STAIRS = STAIR_DN | STAIR_UP;
+    public static uint OPENSPACE    = ROOM | CORRIDOR;
+    public static uint DOORSPACE    = ARCH | DOOR | LOCKED | TRAPPED | SECRET | PORTC;
+    public static uint ESPACE       = ENTRANCE | DOORSPACE | 0xFF000000;
+    public static uint STAIRS       = STAIR_DN | STAIR_UP;
 
-    public static uint BLOCK_ROOM = BLOCKED | ROOM;
-    public static uint BLOCK_CORR = BLOCKED | PERIMETER | CORRIDOR;
-    public static uint BLOCK_DOOR = BLOCKED | DOORSPACE;
+    public static uint BLOCK_ROOM   = BLOCKED | ROOM;
+    public static uint BLOCK_CORR   = BLOCKED | PERIMETER | CORRIDOR;
+    public static uint BLOCK_DOOR   = BLOCKED | DOORSPACE;
 
     public int seed;
     public int n_rows;
@@ -178,21 +178,21 @@ public class dungeon
         seed = System.Environment.TickCount;
         n_rows = 39;
         n_cols = 39;
-        dungeon_layout = "None";
+        dungeon_layout = "Square";
         room_min = 3;
         room_max = 9;
         room_layout = "Packed";
-        corridor_layout = "Bent";
-        remove_deadends = 50;
-        add_stairs = 2;
+        corridor_layout = "Straight";
+        remove_deadends = 100;
+        add_stairs = 0;
         map_style = "Standard";
         cell_size = 18;
     }
 
     private void create_dungeon()
     {
-        n_i = (int)n_rows / 2;
-        n_j = (int)n_cols / 2;
+        n_i = n_rows / 2;
+        n_j = n_cols / 2;
         n_rows = n_i * 2;
         n_cols = n_j * 2;
         max_row = n_rows - 1;
@@ -201,8 +201,8 @@ public class dungeon
 
         int max = room_max;
         int min = room_min;
-        room_base = (int)((min + 1) / 2);
-        room_radix = (int)((max - min) / 2) + 1;
+        room_base = (min + 1) / 2;
+        room_radix = ((max - min) / 2) + 1;
 
         rooms = new SortedList<int, Dictionary<string, object>>();
         connect = new Dictionary<string,int>();
@@ -245,8 +245,8 @@ public class dungeon
 
     private void round_mask()
     {
-        int center_r = (int)n_rows / 2;
-        int center_c = (int)n_cols / 2;
+        int center_r = n_rows / 2;
+        int center_c = n_cols / 2;
 
         for (int r = 0; r <= n_rows; r++)
         {
@@ -259,17 +259,17 @@ public class dungeon
         }
     }
 
-    private void mask_cells(int[][] p)
+    private void mask_cells(int[][] mask)
     {
-        int r_x = (p.Length / (n_rows + 1));
-        int c_x = (p[0].Length / (n_cols + 1));
+        float r_x = mask.Length * 1.0f / (n_rows + 1);
+        float c_x = mask[0].Length * 1.0f / (n_cols + 1);
 
         for (int r = 0; r <= n_rows; r++)
         {
             for (int c = 0; c <= n_cols; c++)
             {
-                if(p[r * r_x][c * c_x] == 1)
-                cell[r][c] = BLOCKED;
+                if (mask[(int)(r * r_x)][(int)(c * c_x)] == 0)
+                    cell[r][c] = BLOCKED;
             }
         }
     }
@@ -292,7 +292,7 @@ public class dungeon
                 int c = (j * 2) + 1;
 
                 if ((cell[r][c] & ROOM) != NOTHING) continue;
-                if ((i == 0 || j == 0) && Random.value > 0.5) continue;
+                if ((i == 0 || j == 0) && (Random.Range(0,2) == 1)) continue;
 
                 Dictionary<string, int> proto = new Dictionary<string,int>() { {"i",i}, {"j",j} };
                 emplace_room(proto);
@@ -311,7 +311,8 @@ public class dungeon
     {
         int dungeon_area = n_cols * n_rows;
         int room_area = room_max * room_max;
-        int n_r = (int)dungeon_area / room_area;
+        int n_r = dungeon_area / room_area;
+
         return n_r;
     }
 
@@ -537,7 +538,7 @@ public class dungeon
                 if (sill.ContainsKey("out_id"))
                 {
                     out_id = (int)sill["out_id"];
-                    string strConnect = Math.Min((int)room["id"], out_id).ToString() + "," + Math.Max((int)room["id"], out_id).ToString();
+                    string strConnect = Mathf.Min((int)room["id"], out_id).ToString() + "," + Mathf.Max((int)room["id"], out_id).ToString();
 
                     if (connect.ContainsKey(strConnect))
                     {
@@ -711,7 +712,7 @@ public class dungeon
     {
         int room_h = (((int)room["south"] - (int)room["north"]) / 2) + 1;
         int room_w = (((int)room["east"] - (int)room["west"]) / 2) + 1;
-        int flumph = (int)Math.Sqrt(room_w * room_h);
+        int flumph = (int)Mathf.Sqrt(room_w * room_h);
         int n_opens = flumph + Random.Range(0, flumph);
 
         return n_opens;
@@ -752,8 +753,8 @@ public class dungeon
             Dictionary<string, object> room = rooms[id];
             string label = room["id"].ToString();
             int len = label.Length;
-            int label_r = (int)((int)room["north"] + (int)room["south"]) / 2;
-            int label_c = (int)(((int)room["west"] + (int)room["east"] - len) / 2) + 1;
+            int label_r = ((int)room["north"] + (int)room["south"]) / 2;
+            int label_c = (((int)room["west"] + (int)room["east"] - len) / 2) + 1;
 
             for (int c = 0; c < len; c++)
             {
@@ -829,10 +830,10 @@ public class dungeon
         if (next_r < 0 || next_r > n_rows) return false;
         if (next_c < 0 || next_c > n_cols) return false;
         
-        int r1 = Math.Min(mid_r,next_r);
-        int r2 = Math.Max(mid_r, next_r);
-        int c1 = Math.Min(mid_c, next_c);
-        int c2 = Math.Max(mid_c, next_c);
+        int r1 = Mathf.Min(mid_r,next_r);
+        int r2 = Mathf.Max(mid_r, next_r);
+        int c1 = Mathf.Min(mid_c, next_c);
+        int c2 = Mathf.Max(mid_c, next_c);
 
         for (int r = r1; r <= r2; r++)
         {
@@ -847,10 +848,10 @@ public class dungeon
 
     private bool delve_tunnel(int this_r, int this_c, int next_r, int next_c)
     {
-        int r1 = Math.Min(this_r,next_r);
-        int r2 = Math.Max(this_r, next_r);
-        int c1 = Math.Min(this_c, next_c);
-        int c2 = Math.Max(this_c, next_c);
+        int r1 = Mathf.Min(this_r, next_r);
+        int r2 = Mathf.Max(this_r, next_r);
+        int c1 = Mathf.Min(this_c, next_c);
+        int c2 = Mathf.Max(this_c, next_c);
 
         for (int r = r1; r <= r2; r++)
         {
