@@ -165,26 +165,24 @@ public class dungeon
     public Dictionary<string, int> connect;
     public Random rnd;
 
-    public dungeon()
+    public dungeon(DungeonOptions opts)
     {
-        get_opts();
+        get_opts(opts);
         create_dungeon();
     }
 
-    protected void get_opts()
+    protected void get_opts(DungeonOptions opts)
     {
-        seed = System.Environment.TickCount;
-        n_rows = 39;
-        n_cols = 39;
-        dungeon_layout = "Square";
-        room_min = 3;
-        room_max = 9;
-        room_layout = "Packed";
-        corridor_layout = "Straight";
-        remove_deadends = 100;
-        add_stairs = 0;
-        map_style = "Standard";
-        cell_size = 18;
+        seed = opts.Seed;
+        n_rows = opts.NRows;
+        n_cols = opts.NCols;
+        dungeon_layout = opts.DungeonLayout;
+        room_min = opts.RoomMin;
+        room_max = opts.RoomMax;
+        room_layout = opts.RoomLayout;
+        corridor_layout = opts.CorridorLayout;
+        remove_deadends = opts.RemoveDeadends;
+        add_stairs = opts.AddStairs;
     }
 
     private void create_dungeon()
