@@ -5,3 +5,7 @@ Work in progress
 
 # Credits
 TileSheet : http://opengameart.org/content/instant-dungeon-v14-art-pack
+
+# Todo
+- Once all bugs are fixed, let's go Object Oriented!
+- Unit testing
