@@ -19,7 +19,7 @@ public class Sample2DRenderer : MonoBehaviour
     public int TileResolution = 12;
 
     private MeshFilter _MeshFilter;
-    private MeshCollider _MeshCollider;
+    //private MeshCollider _MeshCollider;
     private MeshRenderer _MeshRenderer;
 
     public Sprite DoorSprite;
@@ -35,7 +35,7 @@ public class Sample2DRenderer : MonoBehaviour
 
     public void InitializeComponents()
     {
-        _MeshCollider = GetComponent<MeshCollider>();
+        //_MeshCollider = GetComponent<MeshCollider>();
         _MeshFilter = GetComponent<MeshFilter>();
         _MeshRenderer = GetComponent<MeshRenderer>();
     }

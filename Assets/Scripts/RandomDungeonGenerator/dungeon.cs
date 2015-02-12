@@ -797,7 +797,7 @@ public class dungeon
         List<string> dirs = shuffle(new List<string>(dj.Keys));
 
         if (last_dir != null && p > 0 && rnd.Next(100) < p)
-                dirs.InsertRange(0, new string[] { last_dir });
+                dirs.Insert(0, last_dir);
         
         return dirs.ToArray();
     }
@@ -826,7 +826,7 @@ public class dungeon
         if (next_r < 0 || next_r > n_rows) return false;
         if (next_c < 0 || next_c > n_cols) return false;
         
-        int r1 = Math.Min(mid_r,next_r);
+        int r1 = Math.Min(mid_r, next_r);
         int r2 = Math.Max(mid_r, next_r);
         int c1 = Math.Min(mid_c, next_c);
         int c2 = Math.Max(mid_c, next_c);
@@ -935,7 +935,7 @@ public class dungeon
             list = check["corridor"];
             foreach(int[] p in list)
             {
-                if((cell[r+p[0]][c+p[1]] & CORRIDOR) == NOTHING)
+                if(cell[r+p[0]][c+p[1]] == CORRIDOR)
                     return false;
             }
         }
