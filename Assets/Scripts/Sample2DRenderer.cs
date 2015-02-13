@@ -26,6 +26,11 @@ public class Sample2DRenderer : MonoBehaviour
     public Sprite EmptySprite;
     public Sprite RoomSprite;
 
+    public MeshRenderer MeshRenderer
+    {
+        get { return _MeshRenderer; }
+    }
+
 	// Use this for initialization
 	void Start ()
     {
