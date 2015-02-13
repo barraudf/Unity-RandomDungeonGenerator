@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 public class dungeon
 {
@@ -16,27 +17,27 @@ public class dungeon
         { "Straight", 100 }
     };
 
-    protected static Dictionary<string, int> di = new Dictionary<string, int>()
+    protected static Dictionary<EnumDirections, int> di = new Dictionary<EnumDirections, int>()
     {
-        { "north", -1 },
-        { "south", 1 },
-        { "west", 0 },
-        { "east", 0 }
+        { EnumDirections.North, -1 },
+        { EnumDirections.South, 1 },
+        { EnumDirections.West, 0 },
+        { EnumDirections.East, 0 }
     };
-    protected static Dictionary<string, int> dj = new Dictionary<string, int>()
+    protected static Dictionary<EnumDirections, int> dj = new Dictionary<EnumDirections, int>()
     {
-        { "north", 0 },
-        { "south", 0 },
-        { "west", -1 },
-        { "east", 1 }
+        { EnumDirections.North, 0 },
+        { EnumDirections.South, 0 },
+        { EnumDirections.West, -1 },
+        { EnumDirections.East, 1 }
     };
 
-    protected static Dictionary<string, string> opposite = new Dictionary<string, string>()
+    protected static Dictionary<EnumDirections, EnumDirections> opposite = new Dictionary<EnumDirections, EnumDirections>()
     {
-        { "north", "south" },
-        { "south", "north" },
-        { "west", "east" },
-        { "east", "west" }
+        { EnumDirections.North, EnumDirections.South },
+        { EnumDirections.South, EnumDirections.North },
+        { EnumDirections.West, EnumDirections.East },
+        { EnumDirections.East, EnumDirections.West }
     };
 
     protected static Dictionary<string, Dictionary<string, int[][]>> stair_end = new Dictionary<string, Dictionary<string, int[][]>>()
@@ -159,8 +160,7 @@ public class dungeon
     public int room_radix;
     public uint[][] cell;
     public int last_room_id;
-    public SortedList<int, Dictionary<string, object>> rooms;
-    public List<Dictionary<string, object>> doors;
+    public SortedList<int, Room> rooms;
     public List<Dictionary<string, object>> stairs;
     public Dictionary<string, int> connect;
     public Random rnd;
@@ -200,10 +200,9 @@ public class dungeon
         room_base = (min + 1) / 2;
         room_radix = ((max - min) / 2) + 1;
 
-        rooms = new SortedList<int, Dictionary<string, object>>();
+        rooms = new SortedList<int, Room>();
         connect = new Dictionary<string,int>();
         stairs = new List<Dictionary<string, object>>();
-        doors = new List<Dictionary<string,object>>();
 
         init_cells();
         emplace_rooms();
@@ -377,18 +376,18 @@ public class dungeon
         int height = ((r2 - r1) + 1) * 10;
         int width = ((c2 - c1) + 1) * 10;
 
-        Dictionary<string, object> room_data = new Dictionary<string, object>()
+        Room room_data = new Room()
         {
-            { "id", room_id },
-            { "row", r1 },
-            { "col", c1 },
-            { "north", r1 },
-            { "south", r2 },
-            { "west", c1 },
-            { "east", c2 },
-            { "height", height },
-            { "width", width },
-            { "area", height * width }
+            ID = room_id,
+            Row = r1,
+            Col = c1,
+            North = r1,
+            South = r2,
+            West = c1,
+            East = c2,
+            Height = height,
+            Width = width,
+            Area = height * width
             
         };
         rooms.Add(room_id, room_data);
@@ -503,15 +502,15 @@ public class dungeon
         connect.Clear();
     }
 
-    private void open_room(Dictionary<string, object> room)
+    private void open_room(Room room)
     {
-        List<Dictionary<string, object>> list = door_sills(room);
+        List<Sill> list = door_sills(room);
         if(list == null || list.Count == 0) return;
         int n_opens = alloc_opens(room);
 
         for (int i = 0; i < n_opens; i++)
         {
-            Dictionary<string, object> sill = null;
+            Sill sill = null;
             int door_r = 0;
             int door_c = 0;
             uint door_cell = 0;
@@ -524,17 +523,17 @@ public class dungeon
                     sill = Splice(list, rnd.Next(list.Count));
                     if (sill == null)
                         goto next;
-                    door_r = (int)sill["door_r"];
-                    door_c = (int)sill["door_c"];
+                    door_r = sill.DoorR;
+                    door_c = sill.DoorC;
                     door_cell = cell[door_r][door_c];
                 }
                 while ((door_cell & DOORSPACE) != NOTHING);
 
                 int out_id = 0;
-                if (sill.ContainsKey("out_id"))
+                if (sill.Out != null)
                 {
-                    out_id = (int)sill["out_id"];
-                    string strConnect = Math.Min((int)room["id"], out_id).ToString() + "," + Math.Max((int)room["id"], out_id).ToString();
+                    out_id = sill.Out.ID;
+                    string strConnect = Math.Min(room.ID, out_id).ToString() + "," + Math.Max(room.ID, out_id).ToString();
 
                     if (connect.ContainsKey(strConnect))
                     {
@@ -547,9 +546,9 @@ public class dungeon
             }
             while (doContinue);
 
-            int open_r = (int)sill["sill_r"];
-            int open_c = (int)sill["sill_c"];
-            string open_dir = (string)sill["dir"];
+            int open_r = sill.SillR;
+            int open_c = sill.SillC;
+            EnumDirections open_dir = sill.Dir;
 
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             // open door
@@ -563,93 +562,88 @@ public class dungeon
                 cell[r][c] |= ENTRANCE;
             }
             uint door_type = set_door_type();
-            Dictionary<string, object> door =  new Dictionary<string,object>() { {"row", door_r}, {"col", door_c} };
+            Door door =  new Door() { Row = door_r, Col = door_c };
 
             if (door_type == ARCH)
             {
                 cell[door_r][door_c] |= ARCH;
-                door.Add("key", "arch"); door.Add("type", "Archway");
+                door.Key = "arch"; door.Type = "Archway";
             }
             else if (door_type == DOOR)
             {
                 cell[door_r][door_c] |= DOOR;
                 cell[door_r][door_c] |= (Convert.ToUInt32('o') << 24);
-                door.Add("key", "open"); door.Add("type", "Unlocked Door");
+                door.Key = "open"; door.Type = "Unlocked Door";
             }
             else if (door_type == LOCKED)
             {
                 cell[door_r][door_c] |= LOCKED;
                 cell[door_r][door_c] |= (Convert.ToUInt32('x') << 24);
-                door.Add("key", "lock"); door.Add("type", "Locked Door");
+                door.Key = "lock"; door.Type = "Locked Door";
             }
             else if (door_type == TRAPPED)
             {
                 cell[door_r][door_c] |= TRAPPED;
                 cell[door_r][door_c] |= (Convert.ToUInt32('t') << 24);
-                door.Add("key", "trap"); door.Add("type", "Trapped Door");
+                door.Key = "trap"; door.Type = "Trapped Door";
             }
             else if (door_type == SECRET)
             {
                 cell[door_r][door_c] |= SECRET;
                 cell[door_r][door_c] |= (Convert.ToUInt32('s') << 24);
-                door.Add("key", "secret"); door.Add("type", "Secret Door");
+                door.Key = "secret"; door.Type = "Secret Door";
             }
             else if (door_type == PORTC)
             {
                 cell[door_r][door_c] |= PORTC;
                 cell[door_r][door_c] |= (Convert.ToUInt32('#') << 24);
-                door.Add("key", "portc"); door.Add("type", "Portcullis");
+                door.Key = "portc"; door.Type = "Portcullis";
             }
 
-            if(sill.ContainsKey("out_id"))
-                door.Add("out_id", (int)sill["out_id"]);
+            if(sill.Out != null)
+                door.Out = sill.Out;
            
-            if(!room.ContainsKey("door"))
-                room.Add("door", new Dictionary<string, List<Dictionary<string, object>>>());
-            Dictionary<string, List<Dictionary<string, object>>> d  = (Dictionary<string, List<Dictionary<string, object>>>)room["door"];
-            if (!d.ContainsKey(open_dir))
-                d.Add(open_dir, new List<Dictionary<string, object>>());
-            d[open_dir].Add(door);
+            room.Doors[open_dir].Add(door);
         }
         next: ;
     }
 
-    private List<Dictionary<string, object>> door_sills(Dictionary<string, object> room)
+    private List<Sill> door_sills(Room room)
     {
-        List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
+        List<Sill> list = new List<Sill>();
 
-        if ((int)room["north"] >= 3)
+        if (room.North >= 3)
         {
-            for (int c = (int)room["west"]; c <= (int)room["east"]; c += 2)
+            for (int c = room.West; c <= room.East; c += 2)
             {
-                Dictionary<string, object> sill = check_sill(room, (int)room["north"], c, "north");
+                Sill sill = check_sill(room, room.North, c, EnumDirections.North);
                 if (sill != null)
                     list.Add(sill);
             }
         }
-        if ((int)room["south"] <= (n_rows - 3))
+        if (room.South <= (n_rows - 3))
         {
-            for (int c = (int)room["west"]; c <= (int)room["east"]; c += 2)
+            for (int c = room.West; c <= room.East; c += 2)
             {
-                Dictionary<string, object> sill = check_sill(room, (int)room["south"], c, "south");
+                Sill sill = check_sill(room, room.South, c, EnumDirections.South);
                 if (sill != null)
                     list.Add(sill);
             }
         }
-        if ((int)room["west"] >= 3)
+        if (room.West >= 3)
         {
-            for (int r = (int)room["north"]; r <= (int)room["south"]; r += 2)
+            for (int r = room.North; r <= room.South; r += 2)
             {
-                Dictionary<string, object> sill = check_sill(room, r, (int)room["west"], "west");
+                Sill sill = check_sill(room, r, room.West, EnumDirections.West);
                 if (sill != null)
                     list.Add(sill);
             }
         }
-        if ((int)room["east"] <= (n_cols - 3))
+        if (room.East <= (n_cols - 3))
         {
-            for (int r = (int)room["north"]; r <= (int)room["south"]; r += 2)
+            for (int r = room.North; r <= room.South; r += 2)
             {
-                Dictionary<string, object> sill = check_sill(room, r, (int)room["east"], "east");
+                Sill sill = check_sill(room, r, room.East, EnumDirections.East);
                 if (sill != null)
                     list.Add(sill);
         }
@@ -657,7 +651,7 @@ public class dungeon
         return shuffle(list);
     }
 
-    private Dictionary<string, object> check_sill(Dictionary<string, object> room, int sill_r, int sill_c, string dir)
+    private Sill check_sill(Room room, int sill_r, int sill_c, EnumDirections dir)
     {
         int door_r = sill_r + di[dir];
         int door_c = sill_c + dj[dir];
@@ -669,24 +663,24 @@ public class dungeon
         uint out_cell = cell[out_r][out_c];
         if ((out_cell & BLOCKED) != NOTHING) return null;
 
-        Dictionary<string, object> ret = new Dictionary<string, object>()
+        Sill sill = new Sill()
         {
-            {"sill_r",    sill_r},
-            {"sill_c",    sill_c},
-            {"dir",       dir},
-            {"door_r",    door_r},
-            {"door_c",    door_c}
+            SillR   = sill_r,
+            SillC   = sill_c,
+            Dir     = dir,
+            DoorR   = door_r,
+            DoorC   = door_c
         };
 
         if((out_cell & ROOM) != NOTHING)
         {
             int out_id = (int)(out_cell & ROOM_ID) >> 6;
-            if (out_id == (int)room["id"])
+            if (out_id == room.ID)
                 return null;
-            ret.Add("out_id", out_id);
+            sill.Out = rooms[out_id];
         }
         
-        return ret;
+        return sill;
     }
 
     private List<T> shuffle<T>(List<T> list)
@@ -704,10 +698,10 @@ public class dungeon
         return list;
     }
 
-    private int alloc_opens(Dictionary<string, object> room)
+    private int alloc_opens(Room room)
     {
-        int room_h = (((int)room["south"] - (int)room["north"]) / 2) + 1;
-        int room_w = (((int)room["east"] - (int)room["west"]) / 2) + 1;
+        int room_h = ((room.South - room.North) / 2) + 1;
+        int room_w = ((room.East - room.West) / 2) + 1;
         int flumph = (int)Math.Sqrt(room_w * room_h);
         int n_opens = flumph + rnd.Next(flumph);
 
@@ -746,11 +740,11 @@ public class dungeon
     {
         for (int id = 1; id <= n_rooms; id++)
         {
-            Dictionary<string, object> room = rooms[id];
-            string label = room["id"].ToString();
+            Room room = rooms[id];
+            string label = room.ID.ToString();
             int len = label.Length;
-            int label_r = ((int)room["north"] + (int)room["south"]) / 2;
-            int label_c = (((int)room["west"] + (int)room["east"] - len) / 2) + 1;
+            int label_r = (room.North + room.South) / 2;
+            int label_c = ((room.West + room.East - len) / 2) + 1;
 
             for (int c = 0; c < len; c++)
             {
@@ -775,11 +769,11 @@ public class dungeon
         }
     }
 
-    private void tunnel(int i, int j, string last_dir = null)
+    private void tunnel(int i, int j, EnumDirections? last_dir = null)
     {
-        string[] dirs = tunnel_dirs(last_dir);
+        EnumDirections[] dirs = tunnel_dirs(last_dir);
 
-        foreach(string dir in dirs)
+        foreach (EnumDirections dir in dirs)
         {
             if (open_tunnel(i,j,dir))
             {
@@ -791,18 +785,18 @@ public class dungeon
         }
     }
 
-    private string[] tunnel_dirs(string last_dir)
+    private EnumDirections[] tunnel_dirs(EnumDirections? last_dir)
     {
         int p = corridor_layouts[corridor_layout];
-        List<string> dirs = shuffle(new List<string>(dj.Keys));
+        List<EnumDirections> dirs = shuffle(new List<EnumDirections>(dj.Keys));
 
-        if (last_dir != null && p > 0 && rnd.Next(100) < p)
-                dirs.Insert(0, last_dir);
+        if (last_dir.HasValue && p > 0 && rnd.Next(100) < p)
+                dirs.Insert(0, last_dir.Value);
         
         return dirs.ToArray();
     }
 
-    private bool open_tunnel(int i, int j, string dir)
+    private bool open_tunnel(int i, int j, EnumDirections dir)
     {
         int this_r = (i * 2) + 1;
         int this_c = (j * 2) + 1;
@@ -1030,42 +1024,37 @@ public class dungeon
                     fix[r][c] = false;
             }
 
-            foreach (Dictionary<string, object> room in rooms.Values)
+            foreach (Room room in rooms.Values)
             {
-                List<string> dirs = new List<string>( ((Dictionary<string, List<Dictionary<string, object>>>)room["door"]).Keys );
-                foreach (string dir in dirs)
+                EnumDirections[] dirs = room.Doors.Keys.ToArray();
+                foreach (EnumDirections dir in dirs)
                 {
-                    List<Dictionary<string, object>> shiny = new List<Dictionary<string, object>>();
-                    List<Dictionary<string, object>> doors = ((Dictionary<string, List<Dictionary<string, object>>>)room["door"])[dir];
-                    foreach (Dictionary<string, object> door in doors)
+                    List<Door> shiny = new List<Door>();
+                    List<Door> doors = room.Doors[dir];
+                    
+                    foreach (Door door in doors)
                     {
-                        int door_r = (int)door["row"];
-                        int door_c = (int)door["col"];
-                        uint door_cell = cell[door_r][door_c];
+                        uint door_cell = cell[door.Row][door.Col];
                         if ((door_cell & OPENSPACE) == NOTHING) continue;
 
-                        if (fix[door_r][door_c])
+                        if (fix[door.Row][door.Col])
                         {
                             shiny.Add(door);
                         }
                         else
                         {
-                            int out_id;
-                            if (door.ContainsKey("out_id"))
+                            if (door.Out != null)
                             {
-                                out_id = (int)door["out_id"];
-                                string out_dir = opposite[dir];
+                                EnumDirections out_dir = opposite[dir];
 
-                                Dictionary<string, object> out_room = rooms[out_id];
-                                if (!out_room.ContainsKey("door"))
-                                    out_room.Add("door", new Dictionary<string, List<Dictionary<string, object>>>());
-                                Dictionary<string, List<Dictionary<string, object>>> d = (Dictionary<string, List<Dictionary<string, object>>>)out_room["door"];
-                                if (!d.ContainsKey(out_dir))
-                                    d.Add(out_dir, new List<Dictionary<string, object>>());
-                                d[out_dir].Add(door);
+                                Room out_room = door.Out;
+
+                                if (!out_room.Doors.ContainsKey(out_dir))
+                                    out_room.Doors.Add(out_dir, new List<Door>());
+                                out_room.Doors[out_dir].Add(door);
                             }
                             shiny.Add(door);
-                            fix[door_r][door_c] = true;
+                            fix[door.Row][door.Col] = true;
                         }
                     }
                     if (shiny.Count > 0)
@@ -1075,7 +1064,7 @@ public class dungeon
                     }
                     else
                     {
-                        ((Dictionary<string, List<Dictionary<string, object>>>)room["door"]).Remove(dir);
+                        room.Doors.Remove(dir);
                     }
                 }
             }
