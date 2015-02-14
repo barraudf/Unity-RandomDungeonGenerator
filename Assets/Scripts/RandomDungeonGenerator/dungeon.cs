@@ -32,14 +32,6 @@ public class dungeon
         { EnumDirections.East, 1 }
     };
 
-    protected static Dictionary<EnumDirections, EnumDirections> opposite = new Dictionary<EnumDirections, EnumDirections>()
-    {
-        { EnumDirections.North, EnumDirections.South },
-        { EnumDirections.South, EnumDirections.North },
-        { EnumDirections.West, EnumDirections.East },
-        { EnumDirections.East, EnumDirections.West }
-    };
-
     protected static Dictionary<string, Dictionary<string, int[][]>> stair_end = new Dictionary<string, Dictionary<string, int[][]>>()
     {
         { "north", new Dictionary<string, int[][]>()
@@ -159,7 +151,6 @@ public class dungeon
     public int room_base;
     public int room_radix;
     public uint[][] cell;
-    public int last_room_id;
     public SortedList<int, Room> rooms;
     public List<Dictionary<string, object>> stairs;
     public Dictionary<string, int> connect;
@@ -289,7 +280,7 @@ public class dungeon
                 if ((cell[r][c] & ROOM) != NOTHING) continue;
                 if ((i == 0 || j == 0) && (rnd.Next(2) == 1)) continue;
 
-                Dictionary<string, int> proto = new Dictionary<string,int>() { {"i",i}, {"j",j} };
+                Proto proto = new Proto() { I=i, J=j };
                 emplace_room(proto);
             }
         }
@@ -311,12 +302,12 @@ public class dungeon
         return n_r;
     }
 
-    private void emplace_room(Dictionary<string, int> proto = null)
+    private void emplace_room(Proto proto = null)
     {
         if(n_rooms == 999) return;
 
         if(proto == null)
-            proto = new Dictionary<string,int>();
+            proto = new Proto();
 
         int r,c;
 
@@ -328,10 +319,10 @@ public class dungeon
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // room boundaries
 
-        int r1 = ( proto["i"]                    * 2) + 1;
-        int c1 = ( proto["j"]                    * 2) + 1;
-        int r2 = ((proto["i"] + proto["height"]) * 2) - 1;
-        int c2 = ((proto["j"] + proto["width"] ) * 2) - 1;
+        int r1 = ( proto.I                  * 2) + 1;
+        int c1 = ( proto.J                  * 2) + 1;
+        int r2 = ((proto.I + proto.Height)  * 2) - 1;
+        int c2 = ((proto.J + proto.Width )  * 2) - 1;
 
         if (r1 < 1 || r2 > max_row) return;
         if (c1 < 1 || c2 > max_col) return;
@@ -353,7 +344,6 @@ public class dungeon
         {
             return;
         }
-        last_room_id = room_id;
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // emplace room
@@ -420,49 +410,49 @@ public class dungeon
         }
     }
 
-    private void set_room(Dictionary<string,int> proto)
+    private void set_room(Proto proto)
     {
         int i_base = room_base;
         int radix = room_radix;
 
-        if(!proto.ContainsKey("height"))
+        if(!proto.HeightIsSet)
         {
-            if (proto.ContainsKey("i"))
+            if (proto.IIsSet)
             {
-                int a = n_i - i_base - proto["i"];
+                int a = n_i - i_base - proto.I;
                 if (a < 0) a = 0;
                 int r = (a < radix) ? a : radix;
 
-                proto.Add("height", rnd.Next(r) + i_base);
+                proto.Height = rnd.Next(r) + i_base;
             }
             else
             {
-                proto.Add("height", rnd.Next(radix) + i_base);
+                proto.Height = rnd.Next(radix) + i_base;
             }
         }
-        if(!proto.ContainsKey("width"))
+        if(!proto.WidthIsSet)
         {
-            if (proto.ContainsKey("j"))
+            if (proto.JIsSet)
             {
-                int a = n_j - i_base - proto["j"];
+                int a = n_j - i_base - proto.J;
                 if (a < 0) a = 0;
                 int r = (a < radix) ? a : radix;
 
-                proto.Add("width", rnd.Next(r) + i_base);
+                proto.Width = rnd.Next(r) + i_base;
             }
             else
             {
-                proto.Add("width", rnd.Next(radix) + i_base);
+                proto.Width = rnd.Next(radix) + i_base;
             }
         }
-        
-        if(!proto.ContainsKey("i"))
+
+        if (!proto.IIsSet)
         {
-            proto.Add("i", rnd.Next(n_i - proto["height"]));
+            proto.I = rnd.Next(n_i - proto.Height);
         }
-        if(!proto.ContainsKey("j"))
+        if (!proto.JIsSet)
         {
-            proto.Add("j", rnd.Next(n_j - proto["width"]));
+            proto.J = rnd.Next(n_j - proto.Width);
         }
     }
 
@@ -1045,7 +1035,7 @@ public class dungeon
                         {
                             if (door.Out != null)
                             {
-                                EnumDirections out_dir = opposite[dir];
+                                EnumDirections out_dir = dir.Opposite();
 
                                 Room out_room = door.Out;
 
