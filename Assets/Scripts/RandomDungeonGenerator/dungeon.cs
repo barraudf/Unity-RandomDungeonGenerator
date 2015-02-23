@@ -4,12 +4,6 @@ using System.Linq;
 
 public class dungeon
 {
-    protected static Dictionary<string, int[][]> dungeon_layouts = new Dictionary<string, int[][]>()
-    {
-        { "Box", new int[][] { new int[] { 1, 1, 1 }, new int[] { 1, 0, 1 }, new int[] { 1, 1, 1 } }},
-        { "Cross", new int[][] { new int[] { 0, 1, 0 }, new int[] { 1, 1, 1 }, new int[] { 0, 1, 0 } }}
-    };
-
     protected static Dictionary<string, int> corridor_layouts = new Dictionary<string, int>()
     {
         { "Labyrinth", 0 },
@@ -133,7 +127,7 @@ public class dungeon
     public int seed;
     public int n_rows;
     public int n_cols;
-    public string dungeon_layout;
+    public BaseLayout Layout;
     public int room_min;
     public int room_max;
     public string room_layout;
@@ -167,7 +161,7 @@ public class dungeon
         seed = opts.Seed;
         n_rows = opts.NRows;
         n_cols = opts.NCols;
-        dungeon_layout = opts.DungeonLayout;
+        Layout = opts.DungeonLayout;
         room_min = opts.RoomMin;
         room_max = opts.RoomMax;
         room_layout = opts.RoomLayout;
@@ -219,45 +213,8 @@ public class dungeon
         }
         rnd = new Random(seed);
 
-        if (dungeon_layouts.ContainsKey(dungeon_layout))
-        {
-            mask_cells(dungeon_layouts[dungeon_layout]);
-        }
-        else if (dungeon_layout == "Round")
-        {
-            round_mask();
-        }
-    }
-
-    private void round_mask()
-    {
-        int center_r = n_rows / 2;
-        int center_c = n_cols / 2;
-
-        for (int r = 0; r <= n_rows; r++)
-        {
-            for (int c = 0; c <= n_cols; c++)
-            {
-                double d = Math.Sqrt( Math.Pow(r - center_r, 2) + Math.Pow(c - center_c, 2));
-                if (d > center_c)
-                    cell[r][c] = BLOCKED;
-            }
-        }
-    }
-
-    private void mask_cells(int[][] mask)
-    {
-        float r_x = mask.Length * 1.0f / (n_rows + 1);
-        float c_x = mask[0].Length * 1.0f / (n_cols + 1);
-
-        for (int r = 0; r <= n_rows; r++)
-        {
-            for (int c = 0; c <= n_cols; c++)
-            {
-                if (mask[(int)(r * r_x)][(int)(c * c_x)] == 0)
-                    cell[r][c] = BLOCKED;
-            }
-        }
+        if (Layout != null)
+            Layout.MaskCells(this);
     }
 
     private void emplace_rooms()

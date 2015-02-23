@@ -3,7 +3,7 @@
     public int Seed;
     public int NRows;
     public int NCols;
-    public string DungeonLayout;
+    public BaseLayout DungeonLayout;
     public int RoomMin;
     public int RoomMax;
     public string RoomLayout;

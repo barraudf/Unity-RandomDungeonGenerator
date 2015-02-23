@@ -9,7 +9,7 @@ public class Sample2DRenderer : MonoBehaviour
     public int Seed = System.Environment.TickCount;
     public int NRows = 39;
     public int NCols = 39;
-    public string DungeonLayout = "None";
+    public EnumDungeonLayouts DungeonLayout = EnumDungeonLayouts.None;
     public int RoomMin = 3;
     public int RoomMax = 9;
     public string RoomLayout = "Packed";
@@ -52,7 +52,6 @@ public class Sample2DRenderer : MonoBehaviour
             Seed = Seed,
             NRows = NRows,
             NCols = NCols,
-            DungeonLayout = DungeonLayout,
             RoomMin = RoomMin,
             RoomMax = RoomMax,
             RoomLayout = RoomLayout,
@@ -60,6 +59,23 @@ public class Sample2DRenderer : MonoBehaviour
             RemoveDeadends = RemoveDeadends,
             AddStairs = AddStairs
         };
+
+        switch(DungeonLayout)
+        {
+            case EnumDungeonLayouts.Box:
+                opts.DungeonLayout = new BoxLayout();
+                break;
+            case EnumDungeonLayouts.Cross:
+                opts.DungeonLayout = new CrossLayout();
+                break;
+            case EnumDungeonLayouts.Round:
+                opts.DungeonLayout = new RoundLayout();
+                break;
+            default:
+                opts.DungeonLayout = null;
+                break;
+        }
+
         return new dungeon(opts);
     }
 
