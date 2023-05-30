@@ -935,7 +935,7 @@ public class dungeon
             list = check["corridor"];
             foreach(int[] p in list)
             {
-                if(cell[r+p[0]][c+p[1]] == CORRIDOR)
+                if(cell[r+p[0]][c+p[1]] != CORRIDOR)
                     return false;
             }
         }
